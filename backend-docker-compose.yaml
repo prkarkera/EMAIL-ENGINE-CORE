@@ -1,0 +1,68 @@
+version: '3.8'
+
+networks:
+  app_network:
+    driver: bridge
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.7.1
+    container_name: elasticsearch
+    networks:
+      - app_network
+    environment:
+      - discovery.type=single-node
+      - network.host=0.0.0.0
+      - xpack.security.enabled=false
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - '9200:9200'
+      - '9300:9300'
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    restart: unless-stopped
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '5'
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.7.1
+    container_name: kibana
+    networks:
+      - app_network
+    depends_on:
+      - elasticsearch
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=kibana
+      - XPACK_SECURITY_ENABLED=false
+    ports:
+      - '5601:5601'
+    restart: unless-stopped
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '5'
+  email-engine-core:
+    image: pramodkarkera608/email-engine-core-backend:latest
+    container_name: email-engine-core
+    networks:
+      - app_network
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - CLIENT_ID=${CLIENT_ID}
+      - CLIENT_SECRET=${CLIENT_SECRET}
+      - REDIRECT_URI=${REDIRECT_URI}
+volumes:
+  es_data:
+    driver: local
+
